@@ -1,4 +1,4 @@
-package neu
+package shambala
 
 type Network struct {
 	countInputs  int

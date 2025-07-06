@@ -1,4 +1,4 @@
-package neu
+package shambala
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ type Mentor struct {
 	usedMax bool
 }
 
-func BuildMentor(brain *Brain, test *Test) *Mentor {
+func buildMentor(brain *Brain, test *Test) *Mentor {
 	mentor := &Mentor{brain: brain, test: test}
 	mentor.ograde = len(brain.weights)
 	mentor.origins = make([]float64, mentor.ograde)

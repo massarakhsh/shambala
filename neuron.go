@@ -1,4 +1,4 @@
-package neu
+package shambala
 
 type Neuron struct {
 	index   int

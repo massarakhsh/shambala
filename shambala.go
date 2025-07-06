@@ -1,19 +1,17 @@
 package shambala
 
-import "github.com/massarakhsh/shambala/neu"
-
-func BuildBrainFull(levels ...int) *neu.Brain {
-	return neu.BuildBrainFull(levels...)
+func BuildBrainFull(levels ...int) *Brain {
+	return buildBrainFull(levels...)
 }
 
-func LoadBrainFile(nameFile string) *neu.Brain {
-	return neu.LoadBrainFile(nameFile)
+func LoadBrainFile(nameFile string) *Brain {
+	return loadBrainFile(nameFile)
 }
 
-func BuildMentorTest(brain *neu.Brain, test *neu.Test) *neu.Mentor {
-	return neu.BuildMentor(brain, test)
+func BuildMentorTest(brain *Brain, test *Test) *Mentor {
+	return buildMentor(brain, test)
 }
 
-func BuildTest(name string, definition string, inputs [][]float64, outputs [][]float64) *neu.Test {
-	return neu.BuildTest(name, definition, inputs, outputs)
+func BuildTest(name string, definition string, inputs [][]float64, outputs [][]float64) *Test {
+	return buildTest(name, definition, inputs, outputs)
 }

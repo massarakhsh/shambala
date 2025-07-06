@@ -1,4 +1,4 @@
-package neu
+package shambala
 
 import (
 	"os"
@@ -16,19 +16,19 @@ type Brain struct {
 	values  []float64
 }
 
-func BuildBrain(network *Network) *Brain {
+func buildBrain(network *Network) *Brain {
 	brain := &Brain{network: network}
 	brain.initializeWeights()
 	brain.values = make([]float64, len(brain.network.neurons))
 	return brain
 }
 
-func BuildBrainFull(levels ...int) *Brain {
+func buildBrainFull(levels ...int) *Brain {
 	network := BuildNetworkFull(levels...)
-	return BuildBrain(network)
+	return buildBrain(network)
 }
 
-func LoadBrainFile(fileName string) *Brain {
+func loadBrainFile(fileName string) *Brain {
 	if set := lik.SetFromFile(fileName); set != nil {
 		return LoadBrainSet(set)
 	} else {
