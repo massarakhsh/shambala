@@ -8,10 +8,10 @@ import (
 
 type Brain struct {
 	network *Network
-	// * countNeurons zero
-	// * countNeurons min
-	// * countNeurons max
-	// * countNeurits weight
+	// zero   *Neurons
+	// min    *Neurons
+	// max    *Neurons
+	// weight *Links
 	weights []float64
 	values  []float64
 }
@@ -89,14 +89,8 @@ func (brain *Brain) CalculateInputs(inputs []float64) (outputs []float64) {
 
 func (brain *Brain) ProbeInputs(inputs []float64, outputs []float64) (quality float64) {
 	result := brain.CalculateInputs(inputs)
-	ideal := 0.0
 	delta := 0.0
 	for n, val := range outputs {
-		if val >= 0 {
-			ideal += val
-		} else {
-			ideal -= val
-		}
 		res := result[n]
 		if res >= val {
 			delta += res - val
@@ -104,13 +98,7 @@ func (brain *Brain) ProbeInputs(inputs []float64, outputs []float64) (quality fl
 			delta += val - res
 		}
 	}
-	if ideal == 0 {
-		quality = 0.0
-	} else if delta < ideal {
-		quality = (ideal - delta) / ideal
-	} else {
-		quality = 0.0
-	}
+	quality = 1 / (1 + delta)
 	return
 }
 
@@ -165,7 +153,13 @@ func (brain *Brain) initializeWeights() {
 		} else if nw < cNeurons*3 {
 			brain.weights[nw] = 1.0
 		} else {
-			brain.weights[nw] = 1.0 / float64(cLinks)
+			target := brain.network.links[nw-cNeurons*3].target
+			ins := len(target.inputs)
+			if ins > 0 {
+				brain.weights[nw] = 1.0 / float64(ins)
+			} else {
+				brain.weights[nw] = 1.0
+			}
 		}
 	}
 }

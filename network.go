@@ -8,6 +8,18 @@ type Network struct {
 	links        []*Link
 }
 
+type Neuron struct {
+	index   int
+	inputs  []*Link
+	outputs []*Link
+}
+
+type Link struct {
+	index  int
+	source *Neuron
+	target *Neuron
+}
+
 func BuildNetwork() *Network {
 	network := &Network{}
 	return network
@@ -17,6 +29,18 @@ func BuildNetworkFull(levels ...int) *Network {
 	network := BuildNetwork()
 	network.fillNetworkFull(levels...)
 	return network
+}
+
+func buildNeuron(index int) *Neuron {
+	neuron := &Neuron{index: index}
+	return neuron
+}
+
+func buildLink(index int, source *Neuron, target *Neuron) *Link {
+	link := &Link{index: index, source: source, target: target}
+	source.outputs = append(source.outputs, link)
+	target.inputs = append(target.inputs, link)
+	return link
 }
 
 func (network *Network) fillNetworkFull(levels ...int) *Network {

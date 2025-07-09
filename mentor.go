@@ -2,6 +2,7 @@ package shambala
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type Mentor struct {
@@ -11,7 +12,6 @@ type Mentor struct {
 	test    *Test
 
 	direction  int
-	dirReal    int
 	dirList    [8]int
 	dirQual    [8]float64
 	dirLeft    int
@@ -20,8 +20,6 @@ type Mentor struct {
 
 	step    float64
 	quality float64
-	usedMin bool
-	usedMax bool
 }
 
 func buildMentor(brain *Brain, test *Test) *Mentor {
@@ -49,6 +47,9 @@ func (mentor *Mentor) TrainingStep() float64 {
 		if quali := mentor.brain.ProbeTest(mentor.test); quali > mentor.quality {
 			mentor.quality = quali
 			mentor.trySuccess()
+			if mentor.isScan {
+				mentor.tryScan()
+			}
 		} else {
 			mentor.tryFalse()
 		}
@@ -66,7 +67,12 @@ func (mentor *Mentor) tryModify() bool {
 				mentor.dirSuccess = 0
 			} else {
 				mentor.step /= 2
-				//fmt.Printf("Fault scanning, scan=%f\n", mentor.step)
+				if mentor.step < 1e-6 {
+					mentor.step = 0.1 + rand.Float64()*0.9
+					//fmt.Printf("Return to step: %f\n", mentor.step)
+				} else {
+					//fmt.Printf("Shift to step: %f\n", mentor.step)
+				}
 				mentor.direction = 0
 			}
 		}
@@ -84,59 +90,51 @@ func (mentor *Mentor) tryModify() bool {
 			}
 		}
 	}
-	mentor.dirReal = mentor.direction
+	dirReal := mentor.direction
 	step := mentor.step
-	if mentor.dirReal >= mentor.ograde {
-		mentor.dirReal -= mentor.ograde
+	if dirReal >= mentor.ograde {
+		dirReal -= mentor.ograde
 		step = -step
 	}
-	weight := mentor.brain.weights[mentor.dirReal] + step
-	mentor.brain.weights[mentor.dirReal] = weight
-	mentor.usedMin = false
-	mentor.usedMax = false
-	if cNeurons := len(mentor.brain.network.neurons); mentor.dirReal < cNeurons {
-	} else if mentor.dirReal < cNeurons*2 {
-		if weight > mentor.brain.weights[mentor.dirReal+cNeurons] {
-			mentor.usedMax = true
-			mentor.brain.weights[mentor.dirReal+cNeurons] = weight
+
+	brain := mentor.brain
+	cNeurons := len(brain.network.neurons)
+	cLinks := len(brain.network.links)
+	weight := brain.weights[dirReal] + step
+	brain.weights[dirReal] = weight
+	if dirReal < cNeurons {
+	} else if dirReal < cNeurons*2 {
+		if weight > brain.weights[dirReal+cNeurons] {
+			brain.weights[dirReal+cNeurons] = weight
 		}
-	} else if mentor.dirReal < cNeurons*3 {
-		if weight < mentor.brain.weights[mentor.dirReal-cNeurons] {
-			mentor.usedMin = true
-			mentor.brain.weights[mentor.dirReal-cNeurons] = weight
+	} else if dirReal < cNeurons*3 {
+		if weight < brain.weights[dirReal-cNeurons] {
+			brain.weights[dirReal-cNeurons] = weight
+		}
+	} else if fLink := cNeurons * 3; dirReal < fLink+cLinks {
+		iLink := dirReal - fLink
+		link := brain.network.links[iLink]
+		target := link.target
+		ins := len(target.inputs)
+		outs := len(target.outputs)
+		if ins > 0 && outs > 0 {
+			summa := 0.0
+			for _, link := range target.inputs {
+				summa += brain.weights[fLink+link.index]
+			}
+			if delta := summa - 1.0; delta < -1e-6 || delta > 1e-6 {
+				delta /= float64(ins)
+				for _, link := range target.inputs {
+					brain.weights[fLink+link.index] -= delta
+				}
+			}
 		}
 	}
 	return true
 }
 
 func (mentor *Mentor) trySuccess() {
-	cNeurons := len(mentor.brain.network.neurons)
-	mentor.origins[mentor.dirReal] = mentor.brain.weights[mentor.dirReal]
-	if mentor.usedMax {
-		mentor.origins[mentor.dirReal+cNeurons] = mentor.brain.weights[mentor.dirReal+cNeurons]
-	}
-	if mentor.usedMin {
-		mentor.origins[mentor.dirReal-cNeurons] = mentor.brain.weights[mentor.dirReal-cNeurons]
-	}
-	if mentor.isScan {
-		iLeft := mentor.dirLeft
-		for ; iLeft > 0; iLeft-- {
-			if mentor.quality <= mentor.dirQual[iLeft-1] {
-				break
-			}
-			if iLeft < len(mentor.dirList) {
-				mentor.dirList[iLeft] = mentor.dirList[iLeft-1]
-				mentor.dirQual[iLeft] = mentor.dirQual[iLeft-1]
-			}
-		}
-		if iLeft < len(mentor.dirList) {
-			mentor.dirList[iLeft] = mentor.direction
-			mentor.dirQual[iLeft] = mentor.quality
-		}
-		if mentor.dirLeft < len(mentor.dirList) {
-			mentor.dirLeft++
-		}
-	}
+	copy(mentor.origins, mentor.brain.weights)
 	mentor.dirSuccess++
 	if mentor.dirSuccess >= 10 {
 		mentor.dirSuccess = 0
@@ -144,15 +142,28 @@ func (mentor *Mentor) trySuccess() {
 }
 
 func (mentor *Mentor) tryFalse() {
-	cNeurons := len(mentor.brain.network.neurons)
-	mentor.brain.weights[mentor.dirReal] = mentor.origins[mentor.dirReal]
-	if mentor.usedMax {
-		mentor.brain.weights[mentor.dirReal+cNeurons] = mentor.origins[mentor.dirReal+cNeurons]
-	}
-	if mentor.usedMin {
-		mentor.brain.weights[mentor.dirReal-cNeurons] = mentor.origins[mentor.dirReal-cNeurons]
-	}
+	copy(mentor.brain.weights, mentor.origins)
 	mentor.dirSuccess = 0
+}
+
+func (mentor *Mentor) tryScan() {
+	iLeft := mentor.dirLeft
+	for ; iLeft > 0; iLeft-- {
+		if mentor.quality <= mentor.dirQual[iLeft-1] {
+			break
+		}
+		if iLeft < len(mentor.dirList) {
+			mentor.dirList[iLeft] = mentor.dirList[iLeft-1]
+			mentor.dirQual[iLeft] = mentor.dirQual[iLeft-1]
+		}
+	}
+	if iLeft < len(mentor.dirList) {
+		mentor.dirList[iLeft] = mentor.direction
+		mentor.dirQual[iLeft] = mentor.quality
+	}
+	if mentor.dirLeft < len(mentor.dirList) {
+		mentor.dirLeft++
+	}
 }
 
 func (mentor *Mentor) PrintInOut(inputs []float64) {
